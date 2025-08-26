@@ -1,79 +1,15 @@
 import { createGame } from 'odyc';
+import { generateRandomLevels } from './map';
+
+let levels = generateRandomLevels(10); // Bắt đầu với 10 levels
 
 const cellWidth = 9;
 const cellHeight = 8;
 const screenWidth = 8;
 const screenHeight = 8;
 
-const levels = [
-  {
-    map: `
-		........
-		.######.
-		.######.
-		.##XX##.
-		.##XX##.
-		.######.
-		.######.
-		........
-	  `,
-    playerPos: [3, 0],
-  },
-  {
-    map: `
-		........
-		.######.
-		.#X#XX#.
-		.#X##X#.
-		.####X#.
-		.#XXXX#.
-		.######.
-		........
-	  `,
-    playerPos: [3, 0],
-  },
-  {
-    map: `
-		........
-		.######.
-		.######.
-		.##X###.
-		.####X#.
-		.######.
-		.###X##.
-		........
-		`,
-    playerPos: [3, 0],
-  },
-  {
-    map: `
-		........
-		.####X#.
-		.#X##X#.
-		.######.
-		.#X####.
-		.####X#.
-		.#X####.
-		........
-	  `,
-    playerPos: [3, 0],
-  },
-  {
-    map: `
-	  ........
-	  .######.
-	  .X#X##X.
-	  .######.
-	  .######.
-	  .#X#X##.
-	  .######.
-	  ........
-	`,
-    playerPos: [3, 0],
-  },
-];
-
 let levelIndex = 0;
+let score = 0;
 
 const sprites = {
   player: `
@@ -118,16 +54,30 @@ const game = createGame({
     '.': {
       solid: false,
       onEnter: function () {
+        // Kiểm tra xem còn dirty floor không
         for (let y = 0; y < game.height; y++) {
           for (let x = 0; x < game.width; x++) {
-            const cell = game.getCell(x, y);
+            const cell = game.getCellAt(x, y);
             if (cell.symbol === '#') return;
           }
         }
-        levelIndex = (levelIndex + 1) % levels.length;
+
+        // Hoàn thành level - tăng score
+        score++;
+        levelIndex++;
+
+        // Nếu hết levels, tạo thêm levels mới
+        if (levelIndex >= levels.length) {
+          const newLevels = generateRandomLevels(5);
+          levels = [...levels, ...newLevels];
+        }
+
+        // Load level tiếp theo
         const { map, playerPos } = levels[levelIndex];
         game.loadMap(map, [...(playerPos as [number, number])]);
-        if (levelIndex === 0) game.end('Nice job!\n\nEverything’s clean!');
+
+        // Hiển thị thông báo hoàn thành level
+        game.openDialog(`Level ${levelIndex} completed!`);
       },
     },
     '#': {
@@ -135,7 +85,7 @@ const game = createGame({
       solid: false,
       sound: ['BLIP'],
       onEnter: function (target) {
-        game.addToCell(...target.position, '$');
+        game.setCellAt(...target.position, '$');
       },
     },
     $: {
@@ -143,9 +93,12 @@ const game = createGame({
       solid: false,
       sound: ['FALL', 424245453],
       onEnter: async function (target) {
-        game.addToCell(...target.position, '#');
+        game.setCellAt(...target.position, '#');
         await game.openDialog('Oh no, I got it dirty again!');
-        game.end();
+        // End game ngay lập tức khi thua
+        game.end(
+          `Game Over!\n\nFinal Score: ${score}\nLevel reached: ${levelIndex + 1}`
+        );
       },
     },
     X: {
@@ -153,11 +106,13 @@ const game = createGame({
     },
   },
   map: levels[0].map,
-  screenWidth,
-  screenHeight,
   cellWidth,
   cellHeight,
   background: 0,
   volume: 0.04,
   title: 'The sweeper with the dirty shoes',
 });
+
+game.openDialog(
+  ' Welcome to the sweeper with the dirty shoes!| Your mission is to sweep the dirty floor | Simple, right ? Good luck!'
+);
